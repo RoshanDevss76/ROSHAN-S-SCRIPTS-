@@ -1,4 +1,191 @@
--only theme",
+--[[
+    ROSHAN'S PREMIUM HUB V6.0  |  Doors (Archives + Stairwell)
+    - Roles: Guest / Member / Booster / VIP + staff
+    - Pantalla de carga, pestaña Perfil, Bridge Saver (Mines)
+    - Key system + UI móvil
+    - Idiomas: Español / English / Português
+    - Zona VIP (devs, staff y boosters con key VIP) + herramientas Dev
+    - ESP / Anti por EVENTOS (sin escaneos pesados = sin lag)
+    - Sin sistema de kick / sin control remoto
+    - Extras: pestaña Estado (usuarios activos / ejecuciones), Mis Apps,
+      Auto Door 50 / 100 (BETA), mensaje VIP, extras Boost/VIP, carga mejorada
+    - Archives: Anti Ransom (congela), Anti Drones, Anti Forget-Me-Not
+    - Candy Vault (Hollow): ESP caramelos/llaves/calderos + alertas Sir Abe/Socker
+    - Anti Lag mejorado (luces, trails, auto-FPS) + extras VIP
+    - Key: minimizar/cerrar, sección VIP/Boost, canje de key dentro del hub (se reconstruye)
+    - Rol Veteran, Mines ESP, Anti Ragdoll, Anti Drones mejorado, Door 100 reescrito
+]]
+
+-- Compatibilidad: si el ejecutor no trae alguna función, usamos un reemplazo seguro
+local getgenv = getgenv or function() return _G end
+local setclipboard = setclipboard or toclipboard or (syn and syn.write_clipboard) or (Clipboard and Clipboard.set)
+local fireproximityprompt = fireproximityprompt or function(prompt)
+    pcall(function()
+        prompt:InputHoldBegin()
+        task.wait((prompt.HoldDuration or 0) + 0.05)
+        prompt:InputHoldEnd()
+    end)
+end
+
+if getgenv().RoshanHubLoaded then
+    warn("ROSHAN'S PREMIUM HUB ya está ejecutándose.")
+    return
+end
+getgenv().RoshanHubLoaded = true
+
+----------------------------------------------------------------------
+-- CONFIG
+----------------------------------------------------------------------
+local CONFIG = {
+    Name = "ROSHAN'S PREMIUM HUB V6.0",
+    Accent = Color3.fromRGB(170, 70, 255),
+    SaveFile = "RoshanHub_Key.txt",
+    MemberFile = "RoshanHub_Member.txt",
+    UsesFile = "RoshanHub_Uses.txt",
+    -- Keys exclusivas de boosters del Discord (Discord no se puede leer desde Roblox,
+    -- asi que el rol Booster se da con esta key)
+    BoosterKeys = { "BOOSTER_VIP" },
+    LangFile = "RoshanHub_Lang.txt",
+    Discord = "https://discord.gg/V9xwwk6fuT",
+    DiscordUser = "roshan_dvvss", -- DM para VIP Key / Boost
+
+    -- Mis Apps (redes del creador): { texto, usuario, link, color }
+    Socials = {
+        { "📸 Instagram", "roshan_.sv", "https://www.instagram.com/roshan_.sv", Color3.fromRGB(193, 53, 132) },
+        { "🎵 TikTok", "@roshandvss", "https://www.tiktok.com/@roshandvss", Color3.fromRGB(37, 37, 48) },
+        { "▶️ YouTube", "@ROSHAN_DVSS", "https://www.youtube.com/@ROSHAN_DVSS", Color3.fromRGB(190, 30, 40) },
+    },
+
+    -- Estadísticas globales (opcional). Pon aquí la URL de tu Firebase Realtime Database,
+    -- ej: "https://tu-proyecto-default-rtdb.firebaseio.com"  (vacío = desactivado, sin red).
+    -- Solo se envía un ID anónimo aleatorio (nada de usuario, ID de Roblox ni ejecutor).
+    StatsDB = "",
+    AnonFile = "RoshanHub_AnonId.txt",
+
+    Keys = {
+        "ROSHANDVS2", "ROSHAN'S", "ROSHAN_DVVS", "ROSHAN_VIP",
+        "AANN_DEV", "AANN", "LUNA", "RSHNXDOORS", "RXL",
+        "BOOSTER_VIP", -- key para los boosters del Discord (dásela a quien quieras)
+    },
+    -- Keys que desbloquean la zona VIP (los devs/staff la tienen siempre)
+    VipKeys = { "ROSHAN_VIP", "AANN_DEV", "BOOSTER_VIP" },
+
+    DevsByName = {
+        ["theander324"]         = "Owner",
+        ["kya23712"]            = "Co-Owner",
+        ["thiax_8x"]            = "Dev",
+        ["gracebutbad_creator"] = "Tester",
+        ["luky_duki0"]          = "Owner Sister",
+    },
+    DevsById = {
+        [4848254000] = "Owner",
+    },
+    DevList = {
+        { "Theander324", "Owner" },
+        { "Kya23712", "Co-Owner" },
+        { "thiax_8x", "Dev" },
+        { "gracebutbad_creator", "Tester" },
+        { "Luky_duki0", "Owner Sister" },
+        { "Yuanzu_219", "Good Boy" },
+    },
+
+    Sounds = {
+        danger = "rbxassetid://5034170",
+        warn   = "rbxassetid://4590662766",
+        info   = "rbxassetid://6895079853",
+        ok     = "rbxassetid://4590657391",
+    },
+}
+
+----------------------------------------------------------------------
+-- IDIOMAS (la base es español; solo se traduce lo que cambia)
+----------------------------------------------------------------------
+local LANGS = { "es", "en", "pt" }
+local LANG_NAMES = { es = "Español", en = "English", pt = "Português" }
+local Lang = "es"
+pcall(function()
+    if isfile and readfile and isfile(CONFIG.LangFile) then
+        local l = readfile(CONFIG.LangFile)
+        if LANG_NAMES[l] then Lang = l end
+    end
+end)
+
+local TR = {
+    en = {
+        ["Ingresa tu key para continuar"] = "Enter your key to continue",
+        ["🔑  Escribe tu key aquí..."] = "🔑  Type your key here...",
+        ["✔  VERIFICAR KEY"] = "✔  VERIFY KEY",
+        ["🔗  GET KEY (copiar Discord)"] = "🔗  GET KEY (copy Discord)",
+        ["V6.0  •  Entra al Discord para conseguir tu key"] = "V6.0  •  Join the Discord to get your key",
+        ["✅ Link copiado, pégalo en tu navegador"] = "✅ Link copied, paste it in your browser",
+        ["✅ Key correcta, cargando..."] = "✅ Valid key, loading...",
+        ["❌ Key inválida"] = "❌ Invalid key",
+
+        ["Principal"] = "Main", ["Pisos"] = "Floors",
+        ["🔍 Buscar función..."] = "🔍 Search feature...",
+        ["Interacción"] = "Interaction", ["Movimiento"] = "Movement",
+        ["Anti-Entidades"] = "Anti-Entities", ["Supervivencia"] = "Survival",
+        ["Alertas"] = "Alerts", ["Pantalla"] = "Display", ["Efectos"] = "Effects",
+        ["Sonido"] = "Sound", ["Sistema"] = "System", ["Idioma"] = "Language",
+        ["Tema"] = "Theme", ["Zona VIP"] = "VIP Zone", ["Herramientas Dev"] = "Dev Tools",
+
+        ["📍 TP a la puerta (riesgo anticheat)"] = "📍 TP to door (anticheat risk)",
+        ["Anti Entidades (Spoof Crouch)"] = "Anti Entities (Spoof Crouch)",
+        ["Anti Dupe (puertas falsas)"] = "Anti Dupe (fake doors)",
+        ["Anti Obstáculos (Seek/Chandelier)"] = "Anti Obstacles (Seek/Chandelier)",
+        ["👑 God Mode — SOON /premium"] = "👑 God Mode — SOON /premium",
+        ["Objetivos (llaves, fusibles...)"] = "Objectives (keys, fuses...)",
+        ["Entidades"] = "Entities", ["Escondites"] = "Hiding spots",
+        ["Cofres"] = "Chests", ["Jugadores"] = "Players",
+        ["Notificar entidades + sonido"] = "Entity alerts + sound",
+        ["Flash de pantalla en peligro"] = "Danger screen flash",
+        ["Brillo Fullbright"] = "Fullbright level",
+        ["Anticheat Bypass (escaleras)"] = "Anticheat Bypass (ladders)",
+
+        ["Radar de entidades"] = "Entity radar",
+        ["🔒 Zona VIP: necesitas una key VIP (staff y boosters del Discord)."] = "🔒 VIP Zone: you need a VIP key (staff and Discord boosters).",
+        ["💎 Eres VIP: gracias por apoyar el hub."] = "💎 You are VIP: thanks for supporting the hub.",
+        ["📡 Volcar entidades activas"] = "📡 Dump active entities",
+        ["🗂 Listar workspace (consola)"] = "🗂 List workspace (console)",
+        ["📋 Copiar info del servidor"] = "📋 Copy server info",
+        ["🔔 Probar todas las alertas"] = "🔔 Test all alerts",
+
+        ["📍 Piso: %s"] = "📍 Floor: %s",
+        ["👤 Tú: %s"] = "👤 You: %s",
+        ["⚡ FPS: %d  |  Ping: %s"] = "⚡ FPS: %d  |  Ping: %s",
+        ["— Equipo —"] = "— Team —",
+
+        ["Hotel: activa AntiSpeed Bypass antes de usar Speed."] = "Hotel: enable AntiSpeed Bypass before using Speed.",
+        ["Mines: Anti Giggle y el ESP de entidades cubren a Giggle y Grumble."] = "Mines: Anti Giggle and Entity ESP cover Giggle and Grumble.",
+        ["Outdoors: avisamos de Bramble, Caws, Eyestalk, Grampy, Groundskeeper, Mandrake, Monument, Surge y World Lotus. Anti Snare funciona aquí."] = "Outdoors: alerts for Bramble, Caws, Eyestalk, Grampy, Groundskeeper, Mandrake, Monument, Surge and World Lotus. Anti Snare works here.",
+        ["Backdoor: alertas de Haste, Blitz y Lookman. Anti Eyes cubre a Lookman."] = "Backdoor: alerts for Haste, Blitz and Lookman. Anti Eyes covers Lookman.",
+        ["Archives: Ransom = quédate quieto. Scribbles = escóndete en un closet. Bash = esquívalo."] = "Archives: Ransom = stand still. Scribbles = hide in a closet. Bash = dodge it.",
+        ["Daily Run: las entidades vienen de cualquier piso, deja las alertas activadas."] = "Daily Run: entities come from any floor, keep alerts on.",
+        ["⏳ Reset Daily Run (~20:00 UTC) en %s"] = "⏳ Daily Run reset (~20:00 UTC) in %s",
+
+        ["Sonidos"] = "Sounds", ["Volumen"] = "Volume",
+        ["🔔 Probar notificación"] = "🔔 Test notification",
+        ["Destruir script"] = "Destroy script",
+        ["Toca R (botón flotante) para abrir/cerrar. En PC: RightShift."] = "Tap R (floating button) to open/close. On PC: RightShift.",
+        ["Morado"] = "Purple", ["Rojo"] = "Red", ["Azul"] = "Blue",
+        ["Verde"] = "Green", ["Dorado"] = "Gold", ["Rosa"] = "Pink",
+
+        ["📡 %s · %d studs"] = "📡 %s · %d studs",
+        ["⭐ Bienvenido %s %s"] = "⭐ Welcome %s %s",
+        ["✅ %s cargado"] = "✅ %s loaded",
+        ["⭐ %s %s entró al servidor"] = "⭐ %s %s joined the server",
+        ["❌ No se encontró CollisionPart"] = "❌ CollisionPart not found",
+        ["⚠️ Activa AntiSpeed Bypass primero"] = "⚠️ Enable AntiSpeed Bypass first",
+        ["⚠️ [Bypass] Espera 2s y no te muevas"] = "⚠️ [Bypass] Wait 2s and don't move",
+        ["📍 Teletransportado a la puerta %d"] = "📍 Teleported to door %d",
+        ["❌ No se encontró la puerta"] = "❌ Door not found",
+        ["✅ Ajustes reseteados"] = "✅ Settings reset",
+        ["🔔 Prueba de sonido y alerta"] = "🔔 Sound and alert test",
+        ["👑 God Mode llegará pronto en /premium"] = "👑 God Mode is coming soon in /premium",
+        ["📋 Info copiada al portapapeles"] = "📋 Info copied to clipboard",
+        ["🌐 Idioma: %s"] = "🌐 Language: %s",
+        ["🎨 Tema: %s"] = "🎨 Theme: %s",
+        ["🔒 Tema exclusivo VIP"] = "🔒 VIP-only theme",
 
         ["✅ Rush ya pasó"] = "✅ Rush has passed",
         ["✅ Ambush se fue (puede volver)"] = "✅ Ambush left (it may return)",
